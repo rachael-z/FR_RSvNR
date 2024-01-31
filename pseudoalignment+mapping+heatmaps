@@ -123,6 +123,21 @@ TPM_FR<- as.data.frame(TPM_FR)
 TPM_FR<-merge(TPM_FR, map_genes2, by.x = "row.names", by.y = "myCol")
 write.csv(TPM_FR, file = "FR_TPM.csv")
 
+# Differential expression #
+
+rownames(Pheno_data_FR) = Pheno_data_FR$Sample_ID
+Pheno_data_FR$Group = as.factor(Pheno_data_FR$Group)
+
+dds = DESeqDataSetFromTximport(txi.kallisto, colData = Pheno_data_FR, ~ Group)
+dds = DESeq(dds)
+cbind(resultsNames(dds))
+res <- results(dds, name = "Group_RS_vs_NR", alpha = 0.05, independentFiltering = FALSE, cooksCutoff = FALSE)
+summary(res)
+
+deData = data.frame(res[,c(1,2,5,6)])
+colnames(deData) = c("baseMean","log2fc","pvalue","padj")
+deData<-merge(deData, map_genes2, by.x = "row.names", by.y = "myCol")
+write.csv(deData, file="FR_DESeq2_results-genes.csv", quote = F, row.names = F)
 
 ################
 #   Heatmaps   #    
@@ -191,40 +206,6 @@ pheatmap(vsd_3, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotatio
 ```
 
 
-```{r IFN heatmap}
-#IFN list taken from HALLMARK_IFNG_RESPONSE_2023
-
-list<- c("ADAR,APOL6,ARID5B,ARL4A,AUTS2,B2M,BANK1,BATF2,BPGM,BST2,BTG1,C1R,C1S,CASP1,CASP3,CASP4,CASP7,CASP8,CCL2,CCL5,CCL7,CD274,CD38,CD40,CD69,CD74,CD86,CDKN1A,CFB,CFH,CIITA,CMKLR1,CMPK2,CSF2RB,CXCL10,CXCL11,CXCL9,DDX58,DDX60,DHX58,EIF2AK2,EIF4E3,EPSTI1,FAS,FCGR1A,FGL2,FPR1,FTSJD2,GBP4,GBP6,GCH1,GPR18,GZMA,HERC6,HIF1A,HLA-A,HLA-B,HLA-DMA,HLA-DQA1,HLA-DRB1,HLA-G,ICAM1,IDO1,IFI27,IFI30,IFI35,IFI44,IFI44L,IFIH1,IFIT1,IFIT2,IFIT3,IFITM2,IFITM3,IFNAR2,IL10RA,IL15,IL15RA,IL18BP,IL2RB,IL4R,IL6,IL7,IRF1,IRF2,IRF4,IRF5,IRF7,IRF8,IRF9,ISG15,ISG20,ISOC1,ITGB7,JAK2,KLRK1,LAP3,LATS2,LCP2,LGALS3BP,LY6E,LYSMD2,MARCH1,METTL7B,MT2A,MTHFD2,MVP,MX1,MX2,MYD88,NAMPT,NCOA3,NFKB1,NFKBIA,NLRC5,NMI,NOD1,NUP93,OAS2,OAS3,OASL,OGFR,P2RY14,PARP12,PARP14,PDE4B,PELI1,PFKP,PIM1,PLA2G4A,PLSCR1,PML,PNP,PNPT1,PRIC285,PSMA2,PSMA3,PSMB10,PSMB2,PSMB8,PSMB9,PSME1,PSME2,PTGS2,PTPN1,PTPN2,PTPN6,RAPGEF6,RBCK1,RIPK1,RIPK2,RNF213,RNF31,RSAD2,RTP4,SAMD9L,SAMHD1,SECTM1,SELP,SERPING1,SLAMF7,SLC25A28,SOCS1,SOCS3,SOD2,SP110,SPPL2A,SRI,SSPN,ST3GAL5,ST8SIA4,STAT1,STAT2,STAT3,STAT4,TAP1,TAPBP,TDRD7,TNFAIP2,TNFAIP3,TNFAIP6,TNFSF10,TOR1B,TRAFD1,TRIM14,TRIM21,TRIM25,TRIM26,TXNIP,UBE2L6,UPP1,USP18,VAMP5,VAMP8,VCAM1,WARS,XAF1,XCL1,ZBP1,ZNFX1")
-list<-unlist(strsplit(list,","))
-list<- str_to_sentence(list)
-
-
-vsd_ifn <- vsd[rownames(vsd) %in% list,]
-
-
-pheatmap(vsd_ifn, scale = "row", cluster_rows = FALSE)
-
-##reorder data
-#pheno <- pheno[order(pheno$Group),]
-#anno_col_info <- as.data.frame(pheno[,"Group"])
-#row.names(anno_col_info)<- pheno$Sample_name
-
-#anno_info_colors = list(Group = c(RS = "lightgrey",  NR = "black"))
-
-#col_order <- c("FR15", "FR02", "FR05", "FR06", "FR03", "FR01", "FR12", "FR14", "FR09", "FR10", "FR04", "FR11")
-vsd_ifn <- vsd_ifn[, col_order]
-
-pheatmap(vsd_ifn, scale = "row", cluster_cols = FALSE, cluster_rows = F, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
-
-IFNg_gene <- read_excel("~/RNAseq/genelists/IFNg genelist 39.xlsx")
-list2<- IFNg_gene$gene_list
-list2<- str_to_sentence(list2)
-vsd_ifn39 <- vsd[rownames(vsd) %in% list2,]
-vsd_ifn39 <- vsd_ifn39[, col_order]
-pheatmap(vsd_ifn39, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
-
-```
-
 
 # WEHI dataset:
 ```{r load}
@@ -284,41 +265,5 @@ vsd_3 <- vsd_2[, col_order]
 pheatmap(vsd_3, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
 
 
-```
-
-
-```{r IFN heatmap}
-#IFN list taken from HALLMARK_IFNG_RESPONSE_2023
-
-list<- c("ADAR,APOL6,ARID5B,ARL4A,AUTS2,B2M,BANK1,BATF2,BPGM,BST2,BTG1,C1R,C1S,CASP1,CASP3,CASP4,CASP7,CASP8,CCL2,CCL5,CCL7,CD274,CD38,CD40,CD69,CD74,CD86,CDKN1A,CFB,CFH,CIITA,CMKLR1,CMPK2,CSF2RB,CXCL10,CXCL11,CXCL9,DDX58,DDX60,DHX58,EIF2AK2,EIF4E3,EPSTI1,FAS,FCGR1A,FGL2,FPR1,FTSJD2,GBP4,GBP6,GCH1,GPR18,GZMA,HERC6,HIF1A,HLA-A,HLA-B,HLA-DMA,HLA-DQA1,HLA-DRB1,HLA-G,ICAM1,IDO1,IFI27,IFI30,IFI35,IFI44,IFI44L,IFIH1,IFIT1,IFIT2,IFIT3,IFITM2,IFITM3,IFNAR2,IL10RA,IL15,IL15RA,IL18BP,IL2RB,IL4R,IL6,IL7,IRF1,IRF2,IRF4,IRF5,IRF7,IRF8,IRF9,ISG15,ISG20,ISOC1,ITGB7,JAK2,KLRK1,LAP3,LATS2,LCP2,LGALS3BP,LY6E,LYSMD2,MARCH1,METTL7B,MT2A,MTHFD2,MVP,MX1,MX2,MYD88,NAMPT,NCOA3,NFKB1,NFKBIA,NLRC5,NMI,NOD1,NUP93,OAS2,OAS3,OASL,OGFR,P2RY14,PARP12,PARP14,PDE4B,PELI1,PFKP,PIM1,PLA2G4A,PLSCR1,PML,PNP,PNPT1,PRIC285,PSMA2,PSMA3,PSMB10,PSMB2,PSMB8,PSMB9,PSME1,PSME2,PTGS2,PTPN1,PTPN2,PTPN6,RAPGEF6,RBCK1,RIPK1,RIPK2,RNF213,RNF31,RSAD2,RTP4,SAMD9L,SAMHD1,SECTM1,SELP,SERPING1,SLAMF7,SLC25A28,SOCS1,SOCS3,SOD2,SP110,SPPL2A,SRI,SSPN,ST3GAL5,ST8SIA4,STAT1,STAT2,STAT3,STAT4,TAP1,TAPBP,TDRD7,TNFAIP2,TNFAIP3,TNFAIP6,TNFSF10,TOR1B,TRAFD1,TRIM14,TRIM21,TRIM25,TRIM26,TXNIP,UBE2L6,UPP1,USP18,VAMP5,VAMP8,VCAM1,WARS,XAF1,XCL1,ZBP1,ZNFX1")
-list<-unlist(strsplit(list,","))
-list<- str_to_sentence(list)
-
-
-vsd_ifn <- vsd[rownames(vsd) %in% list,]
-
-
-pheatmap(vsd_ifn, scale = "row", cluster_rows = FALSE)
-
-##reorder data
-#pheno <- pheno[order(pheno$Group),]
-#anno_col_info <- as.data.frame(pheno[,"Group"])
-#row.names(anno_col_info)<- pheno$Sample_name
-
-#anno_info_colors = list(Group = c(RS = "lightgrey",  NR = "black"))
-
-#col_order <- c("FR15", "FR02", "FR05", "FR06", "FR03", "FR01", "FR12", "FR14", "FR09", "FR10", "FR04", "FR11")
-vsd_ifn <- vsd_ifn[, col_order]
-
-pheatmap(vsd_ifn, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
-
-IFNg_gene <- read_excel("~/RNAseq/genelists/IFNg genelist 39.xlsx")
-list2<- IFNg_gene$gene_list
-list2<- str_to_sentence(list2)
-vsd_ifn39 <- vsd[rownames(vsd) %in% list2,]
-vsd_ifn39 <- vsd_ifn39[, col_order]
-pheatmap(vsd_ifn39, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
-
-```
 
 
