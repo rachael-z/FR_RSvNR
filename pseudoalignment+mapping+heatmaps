@@ -1,0 +1,324 @@
+Francois' dataset (RS vs NR to polyIC hydrogel - CT26 - dataset #2)
+
+Sample information:
+Sample_ID Group	Size
+FR01	NR	27.5
+FR02	NR	18
+FR03	NR	33
+FR04	RS	24.75
+FR05	NR	30.25
+FR06	NR	24.75
+FR09	RS	27.5
+FR10	RS	22.5
+FR11	RS	30
+FR12	RS	22.5
+FR14	RS	26.5
+FR15	NR	27.5
+
+raw FASTQ files:
+
+md5sum -c checksums.md5
+
+FR01_H3YMNDSX5_TCACCGCGCT-CTAGTATCGA_L003_R1.fastq.gz: OK
+FR01_H3YMNDSX5_TCACCGCGCT-CTAGTATCGA_L003_R2.fastq.gz: OK
+FR02_H3YMNDSX5_GATAGCCTTG-CATTGTGGTA_L003_R1.fastq.gz: OK
+FR02_H3YMNDSX5_GATAGCCTTG-CATTGTGGTA_L003_R2.fastq.gz: OK
+FR03_H3YMNDSX5_CCTGGACGCA-TGGTATACCA_L003_R1.fastq.gz: OK
+FR03_H3YMNDSX5_CCTGGACGCA-TGGTATACCA_L003_R2.fastq.gz: OK
+FR04_H3YMNDSX5_TTACGCACCT-CAACGAGAGC_L003_R1.fastq.gz: OK
+FR04_H3YMNDSX5_TTACGCACCT-CAACGAGAGC_L003_R2.fastq.gz: OK
+FR05_H3YMNDSX5_TCGTTGCTGC-TTCACGAGAC_L003_R1.fastq.gz: OK
+FR05_H3YMNDSX5_TCGTTGCTGC-TTCACGAGAC_L003_R2.fastq.gz: OK
+FR06_H3YMNDSX5_CGACAAGGAT-AGGTGGCCTT_L003_R1.fastq.gz: OK
+FR06_H3YMNDSX5_CGACAAGGAT-AGGTGGCCTT_L003_R2.fastq.gz: OK
+FR09_H3YMNDSX5_GTGTACCTTC-TAGCTCACAG_L003_R1.fastq.gz: OK
+FR09_H3YMNDSX5_GTGTACCTTC-TAGCTCACAG_L003_R2.fastq.gz: OK
+FR10_H3YMNDSX5_ACCTGGCCAA-CGATCTGTGA_L003_R1.fastq.gz: OK
+FR10_H3YMNDSX5_ACCTGGCCAA-CGATCTGTGA_L003_R2.fastq.gz: OK
+FR11_H3YMNDSX5_TGTCTGGCCT-ATTGGCTTCT_L003_R1.fastq.gz: OK
+FR11_H3YMNDSX5_TGTCTGGCCT-ATTGGCTTCT_L003_R2.fastq.gz: OK
+FR12_H3YMNDSX5_AGTTAATGCT-CGGCTGCAGT_L003_R1.fastq.gz: OK
+FR12_H3YMNDSX5_AGTTAATGCT-CGGCTGCAGT_L003_R2.fastq.gz: OK
+FR14_H3YMNDSX5_GGTGAGTAAT-ACTAGATGTT_L003_R1.fastq.gz: OK
+FR14_H3YMNDSX5_GGTGAGTAAT-ACTAGATGTT_L003_R2.fastq.gz: OK
+FR15_H3YMNDSX5_TACTCTGCGC-CATAGTAAGG_L003_R1.fastq.gz: OK
+FR15_H3YMNDSX5_TACTCTGCGC-CATAGTAAGG_L003_R2.fastq.gz: OK
+
+All passed checksums integrity
+
+################
+#              #
+#   Alignment  #
+#              #     
+################
+
+Alignment using Kallisto, using mm10 reference set (transcriptome.idx made previously). Quant mode. Paired end. 100 bootstraps. 8 threads. 
+Added Pseudobam to save pseudoalignments to transcriptome to BAM file
+
+Use bash loop:
+$ for i in $(ls *.fastq.gz | rev | cut -c 13- | rev | uniq); do kallisto quant -i transcriptome.idx  -o kallisto/${i}  -b 100 --threads 8 --pseudobam ${i}_R1.fastq.gz ${i}_R2.fastq.gz; done
+
+Example read-out:
+[quant] fragment length distribution will be estimated from the data
+[index] k-mer length: 31
+[index] number of targets: 118,489
+[index] number of k-mers: 100,614,952
+[index] number of equivalence classes: 433,624
+[quant] running in paired-end mode
+[quant] will process pair 1: FR01_H3YMNDSX5_TCACCGCGCT-CTAGTATCGA_L003_R1.fastq.gz
+                             FR01_H3YMNDSX5_TCACCGCGCT-CTAGTATCGA_L003_R2.fastq.gz
+[quant] finding pseudoalignments for the reads ... done
+[quant] processed 53,412,413 reads, 43,323,860 reads pseudoaligned
+[quant] estimated average fragment length: 159.409
+[   em] quantifying the abundances ... done
+[   em] the Expectation-Maximization algorithm ran for 1,193 rounds
+[bstrp] running EM for the bootstrap: 100
+[  bam] writing pseudoalignments to BAM format .. done
+
+
+
+############
+#          #
+#   in R   #
+#          #     
+############
+
+#specify where the kallisto results are stored. A variable is created for this purpose with
+sample_id <- dir(file.path("kallisto"))
+sample_id
+
+#A list of paths to the kallisto results indexed by the sample IDs
+kal_dirs <- file.path("kallisto", sample_id, "abundance.tsv")
+
+names(kal_dirs) <- paste0("sample", 1:12)
+library(GenomicFeatures)
+library(tximport) #(install 'readr' package for speed up)
+txdb <- makeTxDbFromGFF(file.path("C:/Users/rzemek/Documents/RNAseq/WEHI R/Mus_musculus.GRCm38.100.gtf.gz"))
+txdb <- makeTxDbFromGFF(file.path("..", "Mus_musculus.GRCm38.100.gtf.gz"))
+k <- keys(txdb, keytype = "TXNAME")
+tx2gene <- select(txdb, k, "GENEID", "TXNAME")
+txi.kallisto <- tximport(kal_dirs, type = "kallisto", tx2gene = tx2gene, dropInfReps=TRUE, ignoreTxVersion  = TRUE)
+
+#[output note]: transcripts missing from tx2gene: 1817
+
+counts_FR<-txi.kallisto$counts
+counts_FR<- as.data.frame(counts_FR)
+write.csv(counts_FR, file = "FR_counts.csv")
+
+
+library(org.Mm.eg.db)
+db <- org.Mm.eg.db
+columns(db)
+k <- keys(txdb, keytype = "GENEID")
+map_genes<-mapIds(db,k, column="SYMBOL", keytype="ENSEMBL")
+map_genes2<- as.data.frame(map_genes)
+map_genes2$myCol <- rownames(map_genes2)
+counts2<-merge(counts_FR, map_genes2, by.x = "row.names", by.y = "myCol")
+
+write.csv(counts2, file = "FR_counts_IDs.csv")
+
+#get TPM
+TPM_FR<-txi.kallisto$abundance
+TPM_FR<- as.data.frame(TPM_FR)
+TPM_FR<-merge(TPM_FR, map_genes2, by.x = "row.names", by.y = "myCol")
+write.csv(TPM_FR, file = "FR_TPM.csv")
+
+
+################
+#   Heatmaps   #    
+################
+library(tidyverse)
+library(pheatmap)
+library(RColorBrewer)
+library(DESeq2)
+
+# CT26 dataset:
+
+FR2_counts <- read_csv("~/RNAseq/FR RSvNR/FR_counts.csv")
+pheno <- read_csv("~/RNAseq/FR RSvNR/FR-gel-metadata_v2_CT26.csv")
+
+FR2_counts<- FR2_counts[!(is.na(FR2_counts$Genes)),]
+FR2_counts<- FR2_counts[!duplicated(FR2_counts$Genes),, drop=FALSE]
+FR2_counts2 <- FR2_counts[c(2:13)]
+FR2_counts2<- as.matrix.data.frame(FR2_counts2)
+mode(FR2_counts2) <- "integer"
+
+
+rownames(FR2_counts2) = FR2_counts$Genes
+design.matrix <- model.matrix(~pheno$Group)
+dds <- DESeqDataSetFromMatrix(countData= FR2_counts2, colData =pheno, design = design.matrix)
+dds <- dds[rowSums(counts(dds)) > 5, ]
+```
+
+```{r DE heatmap}
+de <- DESeq(dds)
+cbind(resultsNames(de))
+res <- results(de, name = "pheno.GroupRS", alpha = 0.05, independentFiltering = FALSE, cooksCutoff = FALSE)
+results <- as.data.frame(res)
+results <- results[order(results$log2FoldChange),]
+sigGenes <- rownames(results[results$padj <= .05 & abs(results$log2FoldChange) > 1,])
+
+vsd <- vst(de,blind=TRUE)
+
+# Convert the DESeq transformed object to a data frame
+vsd <- assay(vsd)
+
+#vsd <- as.data.frame(vsd)
+
+# Keep only the significantly differentiated genes where the fold-change was at least 3
+vsd_sig <- vsd[rownames(vsd) %in% sigGenes,]
+vsd_2<-vsd_sig[order(match(rownames(vsd_sig),sigGenes)),]
+
+
+pheatmap(vsd_2, scale = "row", cluster_rows = FALSE)
+
+#reorder data
+pheno <- pheno[order(pheno$Group),]
+anno_col_info <- as.data.frame(pheno[,"Group"])
+row.names(anno_col_info)<- pheno$Sample_name
+
+anno_info_colors = list(
+    Group = c(RS = "lightgrey", 
+               NR = "black")
+)
+
+col_order <- c("FR15", "FR02", "FR05", "FR06", "FR03", "FR01", "FR12", "FR14", "FR09", "FR10", "FR04", "FR11")
+vsd_3 <- vsd_2[, col_order]
+
+pheatmap(vsd_3, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
+
+
+```
+
+
+```{r IFN heatmap}
+#IFN list taken from HALLMARK_IFNG_RESPONSE_2023
+
+list<- c("ADAR,APOL6,ARID5B,ARL4A,AUTS2,B2M,BANK1,BATF2,BPGM,BST2,BTG1,C1R,C1S,CASP1,CASP3,CASP4,CASP7,CASP8,CCL2,CCL5,CCL7,CD274,CD38,CD40,CD69,CD74,CD86,CDKN1A,CFB,CFH,CIITA,CMKLR1,CMPK2,CSF2RB,CXCL10,CXCL11,CXCL9,DDX58,DDX60,DHX58,EIF2AK2,EIF4E3,EPSTI1,FAS,FCGR1A,FGL2,FPR1,FTSJD2,GBP4,GBP6,GCH1,GPR18,GZMA,HERC6,HIF1A,HLA-A,HLA-B,HLA-DMA,HLA-DQA1,HLA-DRB1,HLA-G,ICAM1,IDO1,IFI27,IFI30,IFI35,IFI44,IFI44L,IFIH1,IFIT1,IFIT2,IFIT3,IFITM2,IFITM3,IFNAR2,IL10RA,IL15,IL15RA,IL18BP,IL2RB,IL4R,IL6,IL7,IRF1,IRF2,IRF4,IRF5,IRF7,IRF8,IRF9,ISG15,ISG20,ISOC1,ITGB7,JAK2,KLRK1,LAP3,LATS2,LCP2,LGALS3BP,LY6E,LYSMD2,MARCH1,METTL7B,MT2A,MTHFD2,MVP,MX1,MX2,MYD88,NAMPT,NCOA3,NFKB1,NFKBIA,NLRC5,NMI,NOD1,NUP93,OAS2,OAS3,OASL,OGFR,P2RY14,PARP12,PARP14,PDE4B,PELI1,PFKP,PIM1,PLA2G4A,PLSCR1,PML,PNP,PNPT1,PRIC285,PSMA2,PSMA3,PSMB10,PSMB2,PSMB8,PSMB9,PSME1,PSME2,PTGS2,PTPN1,PTPN2,PTPN6,RAPGEF6,RBCK1,RIPK1,RIPK2,RNF213,RNF31,RSAD2,RTP4,SAMD9L,SAMHD1,SECTM1,SELP,SERPING1,SLAMF7,SLC25A28,SOCS1,SOCS3,SOD2,SP110,SPPL2A,SRI,SSPN,ST3GAL5,ST8SIA4,STAT1,STAT2,STAT3,STAT4,TAP1,TAPBP,TDRD7,TNFAIP2,TNFAIP3,TNFAIP6,TNFSF10,TOR1B,TRAFD1,TRIM14,TRIM21,TRIM25,TRIM26,TXNIP,UBE2L6,UPP1,USP18,VAMP5,VAMP8,VCAM1,WARS,XAF1,XCL1,ZBP1,ZNFX1")
+list<-unlist(strsplit(list,","))
+list<- str_to_sentence(list)
+
+
+vsd_ifn <- vsd[rownames(vsd) %in% list,]
+
+
+pheatmap(vsd_ifn, scale = "row", cluster_rows = FALSE)
+
+##reorder data
+#pheno <- pheno[order(pheno$Group),]
+#anno_col_info <- as.data.frame(pheno[,"Group"])
+#row.names(anno_col_info)<- pheno$Sample_name
+
+#anno_info_colors = list(Group = c(RS = "lightgrey",  NR = "black"))
+
+#col_order <- c("FR15", "FR02", "FR05", "FR06", "FR03", "FR01", "FR12", "FR14", "FR09", "FR10", "FR04", "FR11")
+vsd_ifn <- vsd_ifn[, col_order]
+
+pheatmap(vsd_ifn, scale = "row", cluster_cols = FALSE, cluster_rows = F, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
+
+IFNg_gene <- read_excel("~/RNAseq/genelists/IFNg genelist 39.xlsx")
+list2<- IFNg_gene$gene_list
+list2<- str_to_sentence(list2)
+vsd_ifn39 <- vsd[rownames(vsd) %in% list2,]
+vsd_ifn39 <- vsd_ifn39[, col_order]
+pheatmap(vsd_ifn39, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
+
+```
+
+
+# WEHI dataset:
+```{r load}
+
+FR_wehi_counts <- read_csv("~/RNAseq/FR RSvNR/FR_counts_wehi.csv")
+pheno_wehi <- read_csv("~/RNAseq/FR RSvNR/Pheno_data_FR_wehi.csv")
+
+W_counts<- FR_wehi_counts[!(is.na(FR_wehi_counts$GENES)),]
+W_counts<- W_counts[!duplicated(W_counts$GENES),, drop=FALSE]
+W_counts2 <- W_counts[c(2:11)]
+W_counts2<- as.matrix.data.frame(W_counts2)
+mode(W_counts2) <- "integer"
+
+
+rownames(W_counts2) = W_counts$GENES
+design.matrix <- model.matrix(~pheno_wehi$Group)
+dds <- DESeqDataSetFromMatrix(countData= W_counts2, colData =pheno_wehi, design = design.matrix)
+dds <- dds[rowSums(counts(dds)) > 5, ]
+```
+
+```{r DE heatmap}
+de <- DESeq(dds)
+cbind(resultsNames(de))
+res <- results(de, name = "pheno_wehi.GroupRS", alpha = 0.05, independentFiltering = FALSE, cooksCutoff = FALSE)
+results <- as.data.frame(res)
+results <- results[order(results$log2FoldChange),]
+sigGenes <- rownames(results[results$pvalue <= .05 & abs(results$log2FoldChange) > 1,])
+
+vsd <- vst(de,blind=TRUE)
+
+# Convert the DESeq transformed object to a data frame
+vsd <- assay(vsd)
+
+#vsd <- as.data.frame(vsd)
+
+# Keep only the significantly differentiated genes where the fold-change was at least 3
+vsd_sig <- vsd[rownames(vsd) %in% sigGenes,]
+vsd_2<-vsd_sig[order(match(rownames(vsd_sig),sigGenes)),]
+
+
+pheatmap(vsd_2, scale = "row", cluster_rows = FALSE)
+
+#reorder data
+pheno_wehi <- pheno_wehi[c(1:10),]
+pheno_wehi <- pheno_wehi[order(pheno_wehi$Group),]
+anno_col_info <- as.data.frame(pheno_wehi[,"Group"])
+row.names(anno_col_info)<- pheno_wehi$Sample_ID
+
+anno_info_colors = list(
+    Group = c(RS = "lightgrey", 
+               NR = "black")
+)
+
+col_order <- c("FR_01", "FR_02", "FR_03", "FR_06", "FR_07", "FR_05", "FR_09", "FR_10", "FR_11", "FR_12")
+vsd_3 <- vsd_2[, col_order]
+
+pheatmap(vsd_3, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
+
+
+```
+
+
+```{r IFN heatmap}
+#IFN list taken from HALLMARK_IFNG_RESPONSE_2023
+
+list<- c("ADAR,APOL6,ARID5B,ARL4A,AUTS2,B2M,BANK1,BATF2,BPGM,BST2,BTG1,C1R,C1S,CASP1,CASP3,CASP4,CASP7,CASP8,CCL2,CCL5,CCL7,CD274,CD38,CD40,CD69,CD74,CD86,CDKN1A,CFB,CFH,CIITA,CMKLR1,CMPK2,CSF2RB,CXCL10,CXCL11,CXCL9,DDX58,DDX60,DHX58,EIF2AK2,EIF4E3,EPSTI1,FAS,FCGR1A,FGL2,FPR1,FTSJD2,GBP4,GBP6,GCH1,GPR18,GZMA,HERC6,HIF1A,HLA-A,HLA-B,HLA-DMA,HLA-DQA1,HLA-DRB1,HLA-G,ICAM1,IDO1,IFI27,IFI30,IFI35,IFI44,IFI44L,IFIH1,IFIT1,IFIT2,IFIT3,IFITM2,IFITM3,IFNAR2,IL10RA,IL15,IL15RA,IL18BP,IL2RB,IL4R,IL6,IL7,IRF1,IRF2,IRF4,IRF5,IRF7,IRF8,IRF9,ISG15,ISG20,ISOC1,ITGB7,JAK2,KLRK1,LAP3,LATS2,LCP2,LGALS3BP,LY6E,LYSMD2,MARCH1,METTL7B,MT2A,MTHFD2,MVP,MX1,MX2,MYD88,NAMPT,NCOA3,NFKB1,NFKBIA,NLRC5,NMI,NOD1,NUP93,OAS2,OAS3,OASL,OGFR,P2RY14,PARP12,PARP14,PDE4B,PELI1,PFKP,PIM1,PLA2G4A,PLSCR1,PML,PNP,PNPT1,PRIC285,PSMA2,PSMA3,PSMB10,PSMB2,PSMB8,PSMB9,PSME1,PSME2,PTGS2,PTPN1,PTPN2,PTPN6,RAPGEF6,RBCK1,RIPK1,RIPK2,RNF213,RNF31,RSAD2,RTP4,SAMD9L,SAMHD1,SECTM1,SELP,SERPING1,SLAMF7,SLC25A28,SOCS1,SOCS3,SOD2,SP110,SPPL2A,SRI,SSPN,ST3GAL5,ST8SIA4,STAT1,STAT2,STAT3,STAT4,TAP1,TAPBP,TDRD7,TNFAIP2,TNFAIP3,TNFAIP6,TNFSF10,TOR1B,TRAFD1,TRIM14,TRIM21,TRIM25,TRIM26,TXNIP,UBE2L6,UPP1,USP18,VAMP5,VAMP8,VCAM1,WARS,XAF1,XCL1,ZBP1,ZNFX1")
+list<-unlist(strsplit(list,","))
+list<- str_to_sentence(list)
+
+
+vsd_ifn <- vsd[rownames(vsd) %in% list,]
+
+
+pheatmap(vsd_ifn, scale = "row", cluster_rows = FALSE)
+
+##reorder data
+#pheno <- pheno[order(pheno$Group),]
+#anno_col_info <- as.data.frame(pheno[,"Group"])
+#row.names(anno_col_info)<- pheno$Sample_name
+
+#anno_info_colors = list(Group = c(RS = "lightgrey",  NR = "black"))
+
+#col_order <- c("FR15", "FR02", "FR05", "FR06", "FR03", "FR01", "FR12", "FR14", "FR09", "FR10", "FR04", "FR11")
+vsd_ifn <- vsd_ifn[, col_order]
+
+pheatmap(vsd_ifn, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
+
+IFNg_gene <- read_excel("~/RNAseq/genelists/IFNg genelist 39.xlsx")
+list2<- IFNg_gene$gene_list
+list2<- str_to_sentence(list2)
+vsd_ifn39 <- vsd[rownames(vsd) %in% list2,]
+vsd_ifn39 <- vsd_ifn39[, col_order]
+pheatmap(vsd_ifn39, scale = "row", cluster_cols = FALSE, cluster_rows = T, annotation_col = anno_col_info, annotation_colors = anno_info_colors, show_rownames = F)
+
+```
+
+
